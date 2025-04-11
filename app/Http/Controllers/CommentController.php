@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Events\CommentAdded;
 use App\Models\Application;
 use Illuminate\Http\Request;
 
@@ -11,6 +12,8 @@ class CommentController extends Controller
     {
         $request->validate([
             'body' => 'required|string|max:1000',
+        ], [
+            'body.required' => 'The comment field is required.',
         ]);
 
         $application = Application::findOrFail($applicationId);
@@ -25,6 +28,7 @@ class CommentController extends Controller
             'body' => $request->body,
         ]);
 
+        broadcast(new CommentAdded($comment))->toOthers();;
         return back()->with('success', 'Comment added.');
     }
 }

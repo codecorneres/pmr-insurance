@@ -9,16 +9,15 @@ class ApplicationPolicy
 {
     public function update(User $user, Application $application): bool
     {
-        return $user->isUser() && $application->status !== 'Approved';
+        return (
+            ($user->isUser() && $application->status === 'Needs Update' && $application->user_id === $user->id)
+            || $user->isAdmin()
+            || ($user->isReviewer() && $application->status === 'Under Review')
+        );
     }
 
     public function comment(User $user): bool
     {
         return $user->isReviewer() || $user->isAdmin();
-    }
-
-    public function approve(User $user): bool
-    {
-        return $user->isAdmin();
     }
 }

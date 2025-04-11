@@ -15,10 +15,11 @@ class ApplicationController extends Controller
         $user = Auth::user();
 
         // Get all applications if admin, otherwise only user's own
-        $applications = $user->is_admin
-            ? Application::latest()->get()
-            : Application::where('user_id', $user->id)->latest()->get();
-
+        $applications = match (true) {
+            $user->isAdmin => Application::latest()->get(),
+            $user->isReviewer => Application::whereIn('status', ['Under Review', 'Reviewed'])->latest()->get(),
+            default => Application::where('user_id', $user->id)->latest()->get(),
+        };
         return Inertia::render('applications/index', [
             'applications' => $applications,
             'auth' => ['user' => $user],
@@ -59,15 +60,16 @@ class ApplicationController extends Controller
         return redirect()->route('applications.index')->with('success', 'Application submitted.');
     }
 
-    public function edit($id)
+    public function edit(Application $application)
     {
-        $user = Auth::user();
-        $application = Application::with('answers.question')->findOrFail($id);
-        $questions = Question::orderBy('order')->get();
+        $this->authorize('update', $application);
 
-        if (!$user->is_admin && $user->id !== $application->user_id) {
-            abort(403, 'Unauthorized access to this application.');
-        }
+        $application->load([
+            'answers.question',
+            'comments.user',
+        ]);
+
+        $questions = Question::orderBy('order')->get();
 
         // Build answer map: key => value
         $answerMap = $application->answers->mapWithKeys(function ($answer) {
@@ -81,6 +83,18 @@ class ApplicationController extends Controller
                 'email' => $application->email,
                 'status' => $application->status,
                 'answers' => $answerMap,
+                'comments' => $application->comments->map(function ($comment) {
+                    return [
+                        'id' => $comment->id,
+                        'body' => $comment->body,
+                        'user' => [
+                            'id' => $comment->user->id,
+                            'name' => $comment->user->name,
+                            'role' => $comment->user->role,
+                        ],
+                        'created_at' => $comment->created_at->toDateTimeString(),
+                    ];
+                }),
             ],
             'questions' => $questions,
         ]);
@@ -88,19 +102,17 @@ class ApplicationController extends Controller
 
     public function update(Request $request, Application $application)
     {
+        $this->authorize('update', $application);
+
         $user = Auth::user();
         $questions = Question::all();
-
-        if (!$user->is_admin && $user->id !== $application->user_id) {
-            abort(403, 'Unauthorized access.');
-        }
 
         $validated = $this->validateApplication($request, $questions, $application->id);
 
         $application->update([
             'name' => $validated['name'],
             'email' => $validated['email'],
-            'status' => $user->is_user ? 'Submitted' : $validated['status'],
+            'status' => $user->isUser ? 'Submitted' : ($user->isReviewer ? 'Reviewed' : $validated['status']),
         ]);
 
         $this->saveAnswers($application, $questions, $validated['answers']);

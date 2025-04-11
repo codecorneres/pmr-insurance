@@ -57,71 +57,81 @@ export default function Applications({ auth, applications }: Props) {
                             </TableRow>
                         </TableHeader>
                         <TableBody>
-                            {applications.map((app) => (
-                                <TableRow key={app.id}>
-                                    <TableCell className="font-medium">{app.name}</TableCell>
-                                    <TableCell>{app.email}</TableCell>
-                                    <TableCell>{new Date(app.created_at).toLocaleDateString()}</TableCell>
-                                    <TableCell>
-                                        <TooltipProvider>
-                                            <Tooltip>
-                                                <TooltipTrigger asChild>
-                                                    <span
-                                                        className={`inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-medium ${
-                                                            app.status === 'Submitted'
-                                                                ? 'bg-gray-100 text-gray-800'
-                                                                : app.status === 'Under Review'
-                                                                  ? 'bg-yellow-100 text-yellow-800'
-                                                                  : app.status === 'Reviewed'
-                                                                    ? 'bg-blue-100 text-blue-800'
-                                                                    : app.status === 'Approved'
-                                                                      ? 'bg-green-100 text-green-800'
-                                                                      : app.status === 'Needs Update'
-                                                                        ? 'bg-red-100 text-red-800'
-                                                                        : 'bg-gray-100 text-gray-800'
-                                                        }`}
-                                                    >
-                                                        {app.status === 'Submitted' && <Clock size={14} />}
-                                                        {app.status === 'Under Review' && <Hourglass size={14} />}
-                                                        {app.status === 'Reviewed' && <FileSearch size={14} />}
-                                                        {app.status === 'Approved' && <CheckCircle size={14} />}
-                                                        {app.status === 'Needs Update' && <Pencil size={14} />}
-                                                        {app.status}
-                                                    </span>
-                                                </TooltipTrigger>
-                                                <TooltipContent>
-                                                    {app.status === 'Submitted' && <p>Waiting for admin to review</p>}
-                                                    {app.status === 'Under Review' && <p>Under review by reviewer</p>}
-                                                    {app.status === 'Reviewed' && <p>Reviewed by reviewer</p>}
-                                                    {app.status === 'Approved' && <p>Final approval granted</p>}
-                                                    {app.status === 'Needs Update' && <p>Requires changes by applicant</p>}
-                                                </TooltipContent>
-                                            </Tooltip>
-                                        </TooltipProvider>
-                                    </TableCell>
-                                    <TableCell className="space-x-2 text-right">
-                                        {(auth.user?.is_admin || app.status === 'Needs Update') && (
-                                            <Link
-                                                href={route('applications.edit', app.id)}
-                                                className="inline-block rounded-md bg-blue-600 px-3 py-1 text-xs text-white hover:bg-blue-700"
-                                            >
-                                                Edit
-                                            </Link>
-                                        )}
-
-                                        <button
-                                            onClick={() => {
-                                                if (confirm('Are you sure you want to delete this application?')) {
-                                                    router.delete(route('applications.destroy', app.id));
-                                                }
-                                            }}
-                                            className="inline-block rounded-md bg-red-600 px-3 py-1 text-xs text-white hover:bg-red-700"
-                                        >
-                                            Delete
-                                        </button>
+                            {applications.length === 0 ? (
+                                <TableRow>
+                                    <TableCell colSpan={6} className="py-6 text-center text-sm text-gray-500 dark:text-gray-400">
+                                        No applications found.
                                     </TableCell>
                                 </TableRow>
-                            ))}
+                            ) : (
+                                applications.map((app) => (
+                                    <TableRow key={app.id}>
+                                        <TableCell className="font-medium">{app.name}</TableCell>
+                                        <TableCell>{app.email}</TableCell>
+                                        <TableCell>{new Date(app.created_at).toLocaleDateString()}</TableCell>
+                                        <TableCell>
+                                            <TooltipProvider>
+                                                <Tooltip>
+                                                    <TooltipTrigger asChild>
+                                                        <span
+                                                            className={`inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-medium ${
+                                                                app.status === 'Submitted'
+                                                                    ? 'bg-gray-100 text-gray-800'
+                                                                    : app.status === 'Under Review'
+                                                                      ? 'bg-yellow-100 text-yellow-800'
+                                                                      : app.status === 'Reviewed'
+                                                                        ? 'bg-blue-100 text-blue-800'
+                                                                        : app.status === 'Approved'
+                                                                          ? 'bg-green-100 text-green-800'
+                                                                          : app.status === 'Needs Update'
+                                                                            ? 'bg-red-100 text-red-800'
+                                                                            : 'bg-gray-100 text-gray-800'
+                                                            }`}
+                                                        >
+                                                            {app.status === 'Submitted' && <Clock size={14} />}
+                                                            {app.status === 'Under Review' && <Hourglass size={14} />}
+                                                            {app.status === 'Reviewed' && <FileSearch size={14} />}
+                                                            {app.status === 'Approved' && <CheckCircle size={14} />}
+                                                            {app.status === 'Needs Update' && <Pencil size={14} />}
+                                                            {app.status}
+                                                        </span>
+                                                    </TooltipTrigger>
+                                                    <TooltipContent>
+                                                        {app.status === 'Submitted' && <p>Waiting for admin to review</p>}
+                                                        {app.status === 'Under Review' && <p>Under review by reviewer</p>}
+                                                        {app.status === 'Reviewed' && <p>Reviewed by reviewer</p>}
+                                                        {app.status === 'Approved' && <p>Final approval granted</p>}
+                                                        {app.status === 'Needs Update' && <p>Requires changes by applicant</p>}
+                                                    </TooltipContent>
+                                                </Tooltip>
+                                            </TooltipProvider>
+                                        </TableCell>
+                                        <TableCell className="space-x-2 text-right">
+                                            {(auth.user?.is_admin ||
+                                                app.status === 'Needs Update' ||
+                                                (auth.user?.is_reviewer && app.status === 'Under Review')) && (
+                                                <Link
+                                                    href={route('applications.edit', app.id)}
+                                                    className="inline-block rounded-md bg-blue-600 px-3 py-1 text-xs text-white hover:bg-blue-700"
+                                                >
+                                                    Edit
+                                                </Link>
+                                            )}
+
+                                            <button
+                                                onClick={() => {
+                                                    if (confirm('Are you sure you want to delete this application?')) {
+                                                        router.delete(route('applications.destroy', app.id));
+                                                    }
+                                                }}
+                                                className="inline-block rounded-md bg-red-600 px-3 py-1 text-xs text-white hover:bg-red-700"
+                                            >
+                                                Delete
+                                            </button>
+                                        </TableCell>
+                                    </TableRow>
+                                ))
+                            )}
                         </TableBody>
                     </Table>
                 </div>

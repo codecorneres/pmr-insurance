@@ -7,6 +7,7 @@ use App\Http\Controllers\QuestionController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
+
 Route::get('/', function () {
     return Inertia::render('welcome');
 })->name('home');
@@ -17,8 +18,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     })->name('dashboard');
 
     Route::resource('applications', ApplicationController::class);
-    Route::post('/applications/{application}/comments', [CommentController::class, 'store']);
-
+    Route::post('/applications/{application}/comments', [CommentController::class, 'store'])->name('comments.store');
     //Only admin can access
     Route::middleware(['admin'])->group(function () {
         Route::resource('questions', QuestionController::class);

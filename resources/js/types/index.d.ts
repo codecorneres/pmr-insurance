@@ -66,12 +66,24 @@ export interface Question {
   updated_at?: string;
 }
 
+export interface Comment {
+    id: number;
+    body: string;
+    created_at: string;
+    user: {
+        id: number;
+        name: string;
+        role: string;
+    };
+}
+
 export interface Application {
     id: number;
     name: string;
     email: string;
     status: 'Submitted' | 'Under Review' | 'Reviewed' | 'Approved' | 'Needs Update';
     answers: Record<string, string>;
+    comments?: Comment[];
     created_at: string;
     updated_at: string;
     user_id?: User;
