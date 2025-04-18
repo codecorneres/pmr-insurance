@@ -6,7 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 
 class Application extends Model
 {
-    protected $fillable = ['name', 'email', 'status', 'user_id'];
+    protected $fillable = ['name', 'email', 'status', 'user_id', 'assigned_user_id'];
 
     public function comments()
     {

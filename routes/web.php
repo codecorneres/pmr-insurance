@@ -19,6 +19,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     Route::resource('applications', ApplicationController::class);
     Route::post('/applications/{application}/comments', [CommentController::class, 'store'])->name('comments.store');
+    Route::put('/applications/{application}/comments/{comment}', [CommentController::class, 'update'])->name('comments.update');
+    Route::delete('/comments/{comment}', [CommentController::class, 'destroy'])->name('comments.destroy');
+
     //Only admin can access
     Route::middleware(['admin'])->group(function () {
         Route::resource('questions', QuestionController::class);

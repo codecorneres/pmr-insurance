@@ -1,20 +1,22 @@
 import { Button } from '@/components/ui/button';
+import CommentItem from '@/components/ui/CommentItem';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import AppLayout from '@/layouts/app-layout';
-import { Application, BreadcrumbItem, PageProps, Question } from '@/types';
+import { Application, BreadcrumbItem, PageProps, Question, User as User2 } from '@/types';
 import { Head, router, useForm, usePage } from '@inertiajs/react';
-import { CalendarClock, User } from 'lucide-react';
+import { User } from 'lucide-react';
 import { useEffect } from 'react';
 import { toast } from 'sonner';
 
 interface EditApplicationProps extends PageProps {
     questions: Question[];
     application: Application;
+    users: User2[];
 }
 
-type CommentCreatedEvent = {
+type CommentEvent = {
     comment: {
         id: number;
         body: string;
@@ -27,7 +29,7 @@ type CommentCreatedEvent = {
     };
 };
 
-export default function EditApplication({ questions, application }: EditApplicationProps) {
+export default function EditApplication({ questions, application, users }: EditApplicationProps) {
     const { auth } = usePage<PageProps>().props;
 
     const breadcrumbs: BreadcrumbItem[] = [
@@ -42,20 +44,29 @@ export default function EditApplication({ questions, application }: EditApplicat
         email: application.email || '',
         status: application.status || 'Submitted',
         answers: application.answers || {},
+        assigned_user_id: application.assigned_user_id || '',
     });
 
     useEffect(() => {
         if (!application?.id) return;
 
-        const channel = window.Echo.channel('comments');
-        channel.listen('.comment.created', (event: CommentCreatedEvent) => {
+        const channelAdded = window.Echo.channel('comment-added');
+        const channelUpdated = window.Echo.channel('comment-updated');
+        channelAdded.listen('.comment.created', (event: CommentEvent) => {
             if (auth.user.id === event.comment.user.id) return;
             toast.success(`New comment posted by ${event.comment.user.name}`);
             router.reload({ only: ['application'] });
         });
 
+        channelUpdated.listen('.comment.updated', (event: CommentEvent) => {
+            if (auth.user.id === event.comment.user.id) return;
+            toast.success(`Comment updated by ${event.comment.user.name}`);
+            router.reload({ only: ['application'] });
+        });
+
         return () => {
-            window.Echo.leave('comments');
+            window.Echo.leave('comment-added');
+            window.Echo.leave('comment-updated');
         };
     }, [application?.id]);
 
@@ -92,28 +103,8 @@ export default function EditApplication({ questions, application }: EditApplicat
                     <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Comments</h3>
                     <div className="space-y-4">
                         {application.comments?.length ? (
-                            application.comments.map((comment, index) => (
-                                <div key={index} className="border-muted bg-background rounded-xl border p-4 shadow-sm dark:border-gray-700">
-                                    <div className="text-muted-foreground mb-2 flex items-center gap-1 text-xs">
-                                        <CalendarClock className="h-4 w-4" />
-                                        {new Date(comment.created_at).toLocaleString('en-US', {
-                                            dateStyle: 'medium',
-                                            timeStyle: 'short',
-                                        })}
-                                    </div>
-                                    <div className="mb-1 flex flex-col sm:flex-row sm:items-center sm:justify-between">
-                                        <div className="flex flex-col sm:flex-row sm:items-center sm:gap-2">
-                                            <div className="text-foreground flex items-center gap-1 text-sm font-medium">
-                                                <User className="h-4 w-4" />
-                                                {comment.user.name}
-                                            </div>
-                                            <span className="inline-block rounded-full bg-blue-100 px-2 py-0.5 text-xs font-semibold text-blue-700 dark:bg-blue-900 dark:text-blue-200">
-                                                {comment.user.role}
-                                            </span>
-                                        </div>
-                                    </div>
-                                    <p className="text-muted-foreground text-sm leading-relaxed">{comment.body}</p>
-                                </div>
+                            application.comments.map((comment) => (
+                                <CommentItem key={comment.id} comment={comment} currentUser={auth.user} applicationId={application.id} />
                             ))
                         ) : (
                             <div className="border-muted bg-background text-muted-foreground flex flex-col items-center justify-center gap-2 rounded-xl border p-6 text-center shadow-sm dark:border-gray-700">
@@ -208,6 +199,25 @@ export default function EditApplication({ questions, application }: EditApplicat
                         </div>
                     ))}
 
+                    {auth.user?.is_admin && (
+                        <div className="space-y-2">
+                            <Label htmlFor="assigned_user_id">Assign to User</Label>
+                            <select
+                                id="assigned_user_id"
+                                value={data.assigned_user_id || ''}
+                                onChange={(e) => setData('assigned_user_id', e.target.value)}
+                                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-800"
+                            >
+                                <option value="">-- Not Assigned --</option>
+                                {users.map((user) => (
+                                    <option key={user.id} value={user.id}>
+                                        {user.name}
+                                    </option>
+                                ))}
+                            </select>
+                            {errors.assigned_user_id && <p className="text-sm text-red-500">{errors.assigned_user_id}</p>}
+                        </div>
+                    )}
                     <div>
                         <Button type="submit" disabled={processing} className="w-full">
                             {processing ? 'Saving...' : 'Update Application'}
@@ -225,7 +235,7 @@ export default function EditApplication({ questions, application }: EditApplicat
                                 commentForm.post(route('comments.store', application.id), {
                                     preserveScroll: true,
                                     onSuccess: () => {
-                                        commentForm.reset();
+                                        commentForm.setData('body', '');
                                         toast.success('Comment added');
                                         router.reload({ only: ['application'] });
                                     },

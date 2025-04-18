@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Application;
 use App\Models\Question;
+use App\Models\User;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -18,7 +19,7 @@ class ApplicationController extends Controller
         $applications = match (true) {
             $user->isAdmin => Application::latest()->get(),
             $user->isReviewer => Application::whereIn('status', ['Under Review', 'Reviewed'])->latest()->get(),
-            default => Application::where('user_id', $user->id)->latest()->get(),
+            default => Application::where('assigned_user_id', $user->id)->latest()->get(),
         };
         return Inertia::render('applications/index', [
             'applications' => $applications,
@@ -29,9 +30,11 @@ class ApplicationController extends Controller
     public function create()
     {
         $questions = Question::orderBy('order')->get();
+        $users = User::where('role', 'user')->get();
 
         return Inertia::render('applications/create', [
             'questions' => $questions,
+            'users' => $users,
         ]);
     }
 
@@ -47,6 +50,7 @@ class ApplicationController extends Controller
             'email' => $validated['email'],
             'status' => $validated['status'],
             'user_id' => $user->id,
+            'assigned_user_id' => $user->is_admin ? (int) $request->assigned_user_id : $user->id,
         ]);
 
         if (!$application) {
@@ -76,7 +80,72 @@ class ApplicationController extends Controller
             return [$answer->question->key => $answer->answer];
         });
 
+        $users = User::where('role', 'user')->get();
+
         return Inertia::render('applications/edit', [
+            'application' => [
+                'id' => $application->id,
+                'name' => $application->name,
+                'email' => $application->email,
+                'status' => $application->status,
+                'answers' => $answerMap,
+                'assigned_user_id' => $application->assigned_user_id,
+                'comments' => $application->comments->map(function ($comment) {
+                    return [
+                        'id' => $comment->id,
+                        'body' => $comment->body,
+                        'user' => [
+                            'id' => $comment->user->id,
+                            'name' => $comment->user->name,
+                            'role' => $comment->user->role,
+                        ],
+                        'created_at' => $comment->created_at->toDateTimeString(),
+                    ];
+                }),
+            ],
+            'questions' => $questions,
+            'users' => $users,
+        ]);
+    }
+
+    public function update(Request $request, Application $application)
+    {
+        $this->authorize('update', $application);
+
+        $user = Auth::user();
+        $questions = Question::all();
+
+        $validated = $this->validateApplication($request, $questions, $application->id);
+
+        $application->update([
+            'name' => $validated['name'],
+            'email' => $validated['email'],
+            'status' => $user->isUser ? 'Submitted' : ($user->isReviewer ? 'Reviewed' : $validated['status']),
+            'assigned_user_id' => $user->is_admin ? (int) $request->assigned_user_id : $user->id,
+        ]);
+        logger($application);
+        $this->saveAnswers($application, $questions, $validated['answers']);
+
+        return redirect()->route('applications.index')->with('success', 'Application updated successfully.');
+    }
+
+    public function show(Application $application)
+    {
+        $this->authorize('view', $application);
+
+        $application->load([
+            'answers.question',
+            'comments.user',
+        ]);
+
+        $questions = Question::orderBy('order')->get();
+
+        // Build answer map: key => value
+        $answerMap = $application->answers->mapWithKeys(function ($answer) {
+            return [$answer->question->key => $answer->answer];
+        });
+
+        return Inertia::render('applications/show', [
             'application' => [
                 'id' => $application->id,
                 'name' => $application->name,
@@ -100,27 +169,6 @@ class ApplicationController extends Controller
         ]);
     }
 
-    public function update(Request $request, Application $application)
-    {
-        $this->authorize('update', $application);
-
-        $user = Auth::user();
-        $questions = Question::all();
-
-        $validated = $this->validateApplication($request, $questions, $application->id);
-
-        $application->update([
-            'name' => $validated['name'],
-            'email' => $validated['email'],
-            'status' => $user->isUser ? 'Submitted' : ($user->isReviewer ? 'Reviewed' : $validated['status']),
-        ]);
-
-        $this->saveAnswers($application, $questions, $validated['answers']);
-
-        return redirect()->route('applications.index')->with('success', 'Application updated successfully.');
-    }
-
-
     private function validateApplication(Request $request, $questions, $applicationId = null): array
     {
         $rules = [
@@ -128,6 +176,7 @@ class ApplicationController extends Controller
             'email' => ['required', 'email'],
             'status' => 'required|string',
             'answers' => 'required|array',
+            'assigned_user_id' => 'nullable|exists:users,id',
         ];
 
         if ($applicationId) {

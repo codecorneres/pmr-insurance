@@ -9,7 +9,7 @@ use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
 use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Queue\SerializesModels;
 
-class CommentAdded implements ShouldBroadcast
+class CommentUpdated implements ShouldBroadcast
 {
     use Dispatchable, InteractsWithSockets, SerializesModels;
 
@@ -30,7 +30,7 @@ class CommentAdded implements ShouldBroadcast
      */
     public function broadcastOn(): Channel
     {
-        return new Channel('comment-added'); // public channel — fine for now
+        return new Channel('comment-updated'); // public channel — fine for now
     }
 
     /**
@@ -38,7 +38,7 @@ class CommentAdded implements ShouldBroadcast
      */
     public function broadcastAs(): string
     {
-        return 'comment.created';
+        return 'comment.updated';
     }
 
     /**

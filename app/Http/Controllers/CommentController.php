@@ -3,7 +3,9 @@
 namespace App\Http\Controllers;
 
 use App\Events\CommentAdded;
+use App\Events\CommentUpdated;
 use App\Models\Application;
+use App\Models\Comment;
 use Illuminate\Http\Request;
 
 class CommentController extends Controller
@@ -30,5 +32,23 @@ class CommentController extends Controller
 
         broadcast(new CommentAdded($comment))->toOthers();;
         return back()->with('success', 'Comment added.');
+    }
+
+    public function update(Request $request, Application $application, Comment $comment)
+    {
+        $validated = $request->validate([
+            'body' => 'required|string|max:2000',
+        ]);
+
+        $comment->update(['body' => $validated['body']]);
+
+        broadcast(new CommentUpdated($comment))->toOthers();;
+
+        return back()->with('success', 'Comment updated.');
+    }
+    public function destroy(Comment $comment)
+    {
+        $comment->delete();
+        return back()->with('success', 'Comment deleted.');
     }
 }

@@ -1,9 +1,21 @@
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+    AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import AppLayout from '@/layouts/app-layout';
 import { BreadcrumbItem, User } from '@/types';
 import { Head, Link, router } from '@inertiajs/react';
 import { CheckCircle, Clock, FileSearch, Hourglass, Pencil } from 'lucide-react';
+import { useState } from 'react';
 
 const breadcrumbs: BreadcrumbItem[] = [
     {
@@ -32,6 +44,7 @@ interface Props {
 }
 
 export default function Applications({ auth, applications }: Props) {
+    const [appToDelete, setAppToDelete] = useState<Application | null>(null);
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Applications" />
@@ -107,6 +120,12 @@ export default function Applications({ auth, applications }: Props) {
                                             </TooltipProvider>
                                         </TableCell>
                                         <TableCell className="space-x-2 text-right">
+                                            <Link
+                                                href={route('applications.show', app.id)}
+                                                className="inline-block rounded-md bg-gray-600 px-3 py-1 text-xs text-white hover:bg-gray-700"
+                                            >
+                                                View
+                                            </Link>
                                             {(auth.user?.is_admin ||
                                                 app.status === 'Needs Update' ||
                                                 (auth.user?.is_reviewer && app.status === 'Under Review')) && (
@@ -117,17 +136,41 @@ export default function Applications({ auth, applications }: Props) {
                                                     Edit
                                                 </Link>
                                             )}
-
-                                            <button
-                                                onClick={() => {
-                                                    if (confirm('Are you sure you want to delete this application?')) {
-                                                        router.delete(route('applications.destroy', app.id));
-                                                    }
-                                                }}
-                                                className="inline-block rounded-md bg-red-600 px-3 py-1 text-xs text-white hover:bg-red-700"
-                                            >
-                                                Delete
-                                            </button>
+                                            {!auth.user?.is_reviewer && (
+                                                <AlertDialog>
+                                                    <AlertDialogTrigger asChild>
+                                                        <button
+                                                            onClick={() => setAppToDelete(app)}
+                                                            className="inline-block cursor-pointer rounded-md bg-red-600 px-3 py-1 text-xs text-white hover:bg-red-700"
+                                                        >
+                                                            Delete
+                                                        </button>
+                                                    </AlertDialogTrigger>
+                                                    <AlertDialogContent>
+                                                        <AlertDialogHeader>
+                                                            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                                                            <AlertDialogDescription>
+                                                                This will permanently delete the application <strong>{appToDelete?.name}</strong>.
+                                                                This action cannot be undone.
+                                                            </AlertDialogDescription>
+                                                        </AlertDialogHeader>
+                                                        <AlertDialogFooter>
+                                                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                                            <AlertDialogAction
+                                                                onClick={() => {
+                                                                    if (appToDelete) {
+                                                                        router.delete(route('applications.destroy', appToDelete.id));
+                                                                        setAppToDelete(null);
+                                                                    }
+                                                                }}
+                                                                className="bg-red-600 text-white hover:bg-red-700"
+                                                            >
+                                                                Yes, delete it
+                                                            </AlertDialogAction>
+                                                        </AlertDialogFooter>
+                                                    </AlertDialogContent>
+                                                </AlertDialog>
+                                            )}
                                         </TableCell>
                                     </TableRow>
                                 ))

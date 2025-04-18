@@ -42,6 +42,7 @@ export interface User {
     is_admin?: boolean;
     is_reviewer?: boolean;
     is_user?: boolean;
+    role: 'admin' | 'reviewer' | 'user';
     [key: string]: unknown; // This allows for additional properties...
 }
 
@@ -87,4 +88,5 @@ export interface Application {
     created_at: string;
     updated_at: string;
     user_id?: User;
+    assigned_user_id?: number;
   }
