@@ -1,5 +1,5 @@
 import AppLayout from '@/layouts/app-layout';
-import { Head } from '@inertiajs/react';
+import { Head, usePage } from '@inertiajs/react';
 import { LucideClock, LucideFileText, LucideUser } from 'lucide-react';
 
 const breadcrumbs = [
@@ -9,11 +9,17 @@ const breadcrumbs = [
     },
 ];
 
-// Dummy stats
-const stats = [
+type PageProps = {
+    userCount: number;
+    applicationCount: number;
+};
+
+export default function Dashboard() {
+    const { userCount, applicationCount } = usePage<PageProps>().props;
+    const stats  = [
     {
         title: 'Total Applications',
-        count: 128,
+        count: applicationCount,
         icon: <LucideFileText className="h-6 w-6 text-blue-500" />,
         color: 'bg-blue-100 text-blue-800',
     },
@@ -25,13 +31,11 @@ const stats = [
     },
     {
         title: 'Total Users',
-        count: 54,
+        count: userCount,
         icon: <LucideUser className="h-6 w-6 text-green-500" />,
         color: 'bg-green-100 text-green-800',
     },
 ];
-
-export default function Dashboard() {
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Dashboard" />
